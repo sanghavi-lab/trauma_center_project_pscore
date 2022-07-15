@@ -14,7 +14,6 @@
 from datetime import datetime, timedelta
 import dask.dataframe as dd
 import numpy as np
-import pandas as pd
 
 ############################################ MODULE FOR CLUSTER ########################################################
 
@@ -39,7 +38,7 @@ for year in years:
                    'HCPCS_2ND_MDFR_CD','CARR_LINE_MTUS_CNT_y']
 
     # Read in ambulance claims. Duplicated claim id's were dropped when exporting ambulance claims in previous codes. Any other duplicates may be claims that are hospital to hospital (HH) transfers on the same day.
-    amb = pd.read_parquet(f'/mnt/labshares/sanghavi-lab/Jessy/data/trauma_center_project/merged_amb_mi/{year}/parquet/',engine='fastparquet', columns=columns_amb)
+    amb = dd.read_parquet(f'/mnt/labshares/sanghavi-lab/Jessy/data/trauma_center_project/merged_amb_mi/{year}/parquet/',engine='fastparquet', columns=columns_amb)
 
     # Relabel miles column. The "_y" was the suffix for the miles (see previous code)
     amb = amb.rename(columns={'CARR_LINE_MTUS_CNT_y':'MILES'})
