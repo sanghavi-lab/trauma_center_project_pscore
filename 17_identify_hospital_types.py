@@ -38,12 +38,19 @@ cols_ats = ['TCN', 'AHA_num', 'Add_1', 'City/Town', 'State', 'ACS_Ver', 'State_D
 # Define columns for crosswalk data
 cols_xwalk = ['NPINUM', 'MCRNUM', 'ID','MNAME','MLOCADDR','MLOCCITY','MSTATE']
 
-# Create empty dictionary to store the combined ats-aha data for each year
+#--- Create empty dictionaries ---#
+
+# Create empty dictionary to store the combined ats-aha data for each year. Goal: match with claims data
 ats_aha_dict = {}
 
-# Create empty dictionary list to store duplicated provider ids with different trauma levels (i.e. hospitals that have multiple trauma centers with different levels)
+# Create empty dictionary list to store duplicated provider ids with different trauma levels. Goal: to identify hospitals that have multiple trauma centers with different levels
 duplicated_provider_id_dict_list = {}
     # I will eventually use this list of provider id's to remove any hospitals from my analytical sample that have multiple trauma centers with different levels
+
+# Create empty dictionary to store all ats data. Goal: to drop hospitals that changed lvls overtime
+change_lvl_overtime_dict = {}
+
+#------#
 
 # Specify years
 ats_aha_years = [2012,2013,2014,2015,2016,2017,2018,2019] # We do not have 2012 or 2018 ATS data. Instead we will use 2013 and 2019 as replacements (see below when reading in data)
@@ -60,6 +67,23 @@ for y in ats_aha_years:
     elif y in [2018]: # using 2019 data.
         trauma_ats_df = pd.read_excel(f'/mnt/labshares/sanghavi-lab/data/public_data/data/trauma_center_data/AM_TRAUMA_DATA_FIRST_TAB_UNLOCKED_2019.xlsx',usecols=cols_ats, dtype=str)
         trauma_xwalk_df = pd.read_excel(f'/mnt/labshares/sanghavi-lab/data/public_data/data/trauma_center_data/NPINUM_MCRNUM_AHAID_CROSSWALK_2019.xlsx', header=3,dtype=str, usecols=cols_xwalk)
+
+    # Create trauma_lvl column using State_Des first
+    trauma_ats_df['TRAUMA_LEVEL'] = np.where(trauma_ats_df['State_Des'] == '1', '1',
+                                             np.where(trauma_ats_df['State_Des'] == '2', '2',
+                                                      np.where(trauma_ats_df['State_Des'] == '3', '3',
+                                                               np.where(trauma_ats_df['State_Des'] == '4', '4',
+                                                                        np.where(trauma_ats_df['State_Des'] == '5', '5',
+                                                                                 np.where(trauma_ats_df['State_Des'] == '-',
+                                                                                          '-', '-'))))))
+
+    # Then prioritize ACS (there is no lvl 4 or 5 in ACS_Ver column)
+    trauma_ats_df.loc[trauma_ats_df['ACS_Ver'] == '1', 'TRAUMA_LEVEL'] = '1'
+    trauma_ats_df.loc[trauma_ats_df['ACS_Ver'] == '2', 'TRAUMA_LEVEL'] = '2'
+    trauma_ats_df.loc[trauma_ats_df['ACS_Ver'] == '3', 'TRAUMA_LEVEL'] = '3'
+
+    # Put ATS data before merging with xwalk in dict. We do not need the x-walk data when identifying hospitals that changed overtime
+    change_lvl_overtime_dict[y] = trauma_ats_df
 
     # Put indicator of 1 to observe if crosswalk and ats data matched
     trauma_xwalk_df['ats_match_ind'] = 1
@@ -80,21 +104,7 @@ for y in ats_aha_years:
     # Keep hospitals form ATS who matched with AHA
     ats_aha_dict[y] = trauma_ats_xwalk_df[trauma_ats_xwalk_df['ats_match_ind'] == 1]
 
-    # Create trauma_lvl column using State_Des first
-    ats_aha_dict[y]['TRAUMA_LEVEL'] = np.where(ats_aha_dict[y]['State_Des'] == '1', '1',
-                                             np.where(ats_aha_dict[y]['State_Des'] == '2', '2',
-                                                      np.where(ats_aha_dict[y]['State_Des'] == '3', '3',
-                                                               np.where(ats_aha_dict[y]['State_Des'] == '4', '4',
-                                                                        np.where(ats_aha_dict[y]['State_Des'] == '5', '5',
-                                                                                 np.where(ats_aha_dict[y]['State_Des'] == '-',
-                                                                                          '-', '-'))))))
-
-    # Then prioritize ACS (there is no lvl 4 or 5 in ACS_Ver column)
-    ats_aha_dict[y].loc[ats_aha_dict[y]['ACS_Ver'] == '1', 'TRAUMA_LEVEL'] = '1'
-    ats_aha_dict[y].loc[ats_aha_dict[y]['ACS_Ver'] == '2', 'TRAUMA_LEVEL'] = '2'
-    ats_aha_dict[y].loc[ats_aha_dict[y]['ACS_Ver'] == '3', 'TRAUMA_LEVEL'] = '3'
-
-    # # see number of t lvl per year
+    # # see number of t lvl per year among those that matched with the x-walk
     # ats_aha_dict[y] = ats_aha_dict[y][ats_aha_dict[y]['TRAUMA_LEVEL']!='-']
     # df = ats_aha_dict[y].TRAUMA_LEVEL.value_counts().to_frame().sort_values(by='TRAUMA_LEVEL')
     # print(df.head(60))
@@ -120,9 +130,6 @@ for y in ats_aha_years:
     duplicated_provider_id_dict_list[y] = duplicated_provider_id['MCRNUM'].tolist()
     #-------------#
 
-    # Drop TRAUMA_LEVEL column that we created
-    ats_aha_dict[y] = ats_aha_dict[y].drop(['TRAUMA_LEVEL'],axis=1)
-
     # Recover memory
     del trauma_ats_xwalk_df
     del trauma_xwalk_df
@@ -142,12 +149,6 @@ for y in claims_years:
 
     # Read in data
     df_merge_claims_w_niss = pd.read_csv(f'/mnt/labshares/sanghavi-lab/Jessy/data/trauma_center_project_all_hos_claims/claims_w_comorbid_trnsfr_ind_geo_and_hosquality/{y}.csv',dtype=str)
-
-    # ----- CHECK DENOMINATOR OF CLAIMS ----#
-    beginning_denom = df_merge_claims_w_niss.shape[0]
-    denom_list_appendix.append(beginning_denom) # Store denom in list for appendix
-    print('\n\n','number of claims (should be same as bottom after matching)',beginning_denom, '\n\n')
-    # ----------------------------------#
 
     # Create a list of indicator columns
     ind_list = df_merge_claims_w_niss.columns[df_merge_claims_w_niss.columns.str.endswith('_ind')].tolist()
@@ -180,6 +181,12 @@ for y in claims_years:
     df_merge_claims_w_niss['year_fe'] = df_merge_claims_w_niss['year_fe'].mask(df_merge_claims_w_niss['SRVC_BGN_DT'].dt.year == 2016, 2016)
     df_merge_claims_w_niss['year_fe'] = df_merge_claims_w_niss['year_fe'].mask(df_merge_claims_w_niss['SRVC_BGN_DT'].dt.year == 2017, 2017)
 
+    # ----- CHECK DENOMINATOR OF CLAIMS ----#
+    beginning_denom = df_merge_claims_w_niss.shape[0]
+    denom_list_appendix.append(beginning_denom) # Store denom in list for appendix
+    print('\n\n','number of claims (should be same as bottom after matching)',beginning_denom, '\n\n')
+    # ----------------------------------#
+
     #--- First: Match on 6-digit Provider ID same year ---#
 
     # Add consecutive numbers to drop duplicated merges
@@ -210,7 +217,7 @@ for y in claims_years:
 
     # Clean columns in those not matched
     notmatched_claims = notmatched_claims.drop(['NPINUM', 'MCRNUM', 'ID', 'MNAME', 'MLOCADDR', 'MLOCCITY', 'MSTATE', 'ats_match_ind',
-                                                'TCN', 'AHA_num', 'Add_1', 'City/Town', 'State', 'ACS_Ver', 'State_Des'], axis=1)
+                                                'TCN', 'AHA_num', 'Add_1', 'City/Town', 'State', 'ACS_Ver', 'State_Des','TRAUMA_LEVEL'], axis=1)
 
     # Add consecutive numbers to drop duplicated merges
     notmatched_claims = notmatched_claims.reset_index(drop=True)  # To prevent the "SettingWithCopyWarning" message
@@ -241,7 +248,7 @@ for y in claims_years:
 
     # Clean columns in those not matched
     notmatched_claims_fr_sameyr = notmatched_claims_fr_sameyr.drop(['NPINUM', 'MCRNUM', 'ID', 'MNAME', 'MLOCADDR', 'MLOCCITY', 'MSTATE', 'ats_match_ind',
-                                                'TCN', 'AHA_num', 'Add_1', 'City/Town', 'State', 'ACS_Ver', 'State_Des'], axis=1)
+                                                'TCN', 'AHA_num', 'Add_1', 'City/Town', 'State', 'ACS_Ver', 'State_Des','TRAUMA_LEVEL'], axis=1)
 
     # Add consecutive numbers to drop duplicated merges
     notmatched_claims_fr_sameyr = notmatched_claims_fr_sameyr.reset_index(drop=True)  # To prevent the "SettingWithCopyWarning" message
@@ -272,7 +279,7 @@ for y in claims_years:
 
     # Clean columns in those not matched
     notmatched_claims_nextyr_PID = notmatched_claims_nextyr_PID.drop(['NPINUM', 'MCRNUM', 'ID', 'MNAME', 'MLOCADDR', 'MLOCCITY', 'MSTATE', 'ats_match_ind',
-                                                'TCN', 'AHA_num', 'Add_1', 'City/Town', 'State', 'ACS_Ver', 'State_Des'], axis=1)
+                                                'TCN', 'AHA_num', 'Add_1', 'City/Town', 'State', 'ACS_Ver', 'State_Des','TRAUMA_LEVEL'], axis=1)
 
     # Add consecutive numbers to drop duplicated merges
     notmatched_claims_nextyr_PID = notmatched_claims_nextyr_PID.reset_index(drop=True)  # To prevent the "SettingWithCopyWarning" message
@@ -374,7 +381,6 @@ for y in claims_years:
     df_merge_claims_w_niss['year_fe'] = df_merge_claims_w_niss['year_fe'].mask(df_merge_claims_w_niss['SRVC_BGN_DT'].dt.year == 2015, 2015)
     df_merge_claims_w_niss['year_fe'] = df_merge_claims_w_niss['year_fe'].mask(df_merge_claims_w_niss['SRVC_BGN_DT'].dt.year == 2016, 2016)
     df_merge_claims_w_niss['year_fe'] = df_merge_claims_w_niss['year_fe'].mask(df_merge_claims_w_niss['SRVC_BGN_DT'].dt.year == 2017, 2017)
-    df_merge_claims_w_niss['year_fe'] = df_merge_claims_w_niss['year_fe'].mask(df_merge_claims_w_niss['SRVC_BGN_DT'].dt.year == 2018, 2018)
 
     # --- First: Match on 6-digit Provider ID all years and keep only unmatched ---#
 
@@ -394,7 +400,7 @@ for y in claims_years:
 
     # Clean columns in those NOT matched
     unmatched_claims_PID = unmatched_claims_PID.drop(['NPINUM', 'MCRNUM', 'ID', 'MNAME', 'MLOCADDR', 'MLOCCITY', 'MSTATE', 'ats_match_ind',
-                                                'TCN', 'AHA_num', 'Add_1', 'City/Town', 'State', 'ACS_Ver', 'State_Des'], axis=1)
+                                                'TCN', 'AHA_num', 'Add_1', 'City/Town', 'State', 'ACS_Ver', 'State_Des','TRAUMA_LEVEL'], axis=1)
 
     # Merge the ATS trauma data (all years) with the unmatched claims on NPI
     merge_claims_ats_NPI = pd.merge(ats_aha_allyears, unmatched_claims_PID, left_on=['NPINUM'],right_on=['ORG_NPI_NUM'],how='right')
@@ -460,13 +466,10 @@ final_unmatched_claims_allyears['transfer_ind_two_days'] = np.where(((final_unma
 
 #___ IMPORTANT: Drop hospitals that change trauma levels overtime from 13-17 ___#
 
-#--- First: drop using AHA num witin using ATS data (using TCN (hospital name) ---#
+#--- First: drop using AHA num within using ATS data (using TCN (hospital name) ---#
 
 # Define columns for ATS data
 cols_ats = ['TCN','AHA_num','ACS_Ver', 'State_Des']
-
-# Empty Dict to store df's
-df_dict={}
 
 # Create empyty list
 df_list=[]
@@ -476,28 +479,14 @@ years=[2013,2014,2015,2016,2017]
 
 for y in years:
 
-    # Read in trauma data from ATS
-    df_dict[y] = pd.read_excel(f'/mnt/labshares/sanghavi-lab/data/public_data/data/trauma_center_data/AM_TRAUMA_DATA_FIRST_TAB_UNLOCKED_{y}.xlsx',usecols=cols_ats,dtype=str)
-
     # Create column specifying year in order to sort values
-    df_dict[y]['year'] = f"{y}"
+    change_lvl_overtime_dict[y]['year'] = f"{y}"
 
-    # Create trauma_lvl column using State_Des
-    df_dict[y]['TRAUMA_LEVEL'] = np.where(df_dict[y]['State_Des'] == '1', '1',
-                                             np.where(df_dict[y]['State_Des'] == '2', '2',
-                                                      np.where(df_dict[y]['State_Des'] == '3', '3',
-                                                               np.where(df_dict[y]['State_Des'] == '4', '4',
-                                                                        np.where(df_dict[y]['State_Des'] == '5', '5',
-                                                                                 np.where(df_dict[y]['State_Des'] == '-',
-                                                                                          '-', '-'))))))
-
-    # Prioritize ACS
-    df_dict[y].loc[df_dict[y]['ACS_Ver'] == '1', 'TRAUMA_LEVEL'] = '1'
-    df_dict[y].loc[df_dict[y]['ACS_Ver'] == '2', 'TRAUMA_LEVEL'] = '2'
-    df_dict[y].loc[df_dict[y]['ACS_Ver'] == '3', 'TRAUMA_LEVEL'] = '3'
+    # Keep columns needed
+    change_lvl_overtime_dict[y] = change_lvl_overtime_dict[y][['TCN','AHA_num','TRAUMA_LEVEL', 'year']]
 
     # Append df from dictionary to list
-    df_list.append(df_dict[y])
+    df_list.append(change_lvl_overtime_dict[y])
 
 # Concat all years of ATS together
 ats_13_17 = pd.concat(df_list,axis=0)
@@ -521,7 +510,7 @@ lvl_change_list_aha_num = ats_13_17_dup['AHA_num'].tolist()  # append to list
 del ats_13_17_dup
 del ats_13_17
 del df_list
-del df_dict
+del change_lvl_overtime_dict
 
 # Finally, drop those where there was a change in trauma levels between 13-17 (only for trauma centers) based on AHA number
 final_matched_claims_allyears = final_matched_claims_allyears[~final_matched_claims_allyears['AHA_num'].isin(lvl_change_list_aha_num)]
@@ -533,27 +522,21 @@ final_matched_claims_allyears = final_matched_claims_allyears[~final_matched_cla
 # Create a new columns based on year
 final_matched_claims_allyears['year'] = final_matched_claims_allyears['SRVC_BGN_DT'].dt.year
 
-# Again, create trauma_lvl column using state_des
-final_matched_claims_allyears['TRAUMA_LEVEL'] = np.where(final_matched_claims_allyears['State_Des'] == '1', '1',
-                                                      np.where(final_matched_claims_allyears['State_Des'] == '2', '2',
-                                                               np.where(final_matched_claims_allyears['State_Des'] == '3', '3',
-                                                                        np.where(final_matched_claims_allyears['State_Des'] == '4', '4',
-                                                                                 np.where(final_matched_claims_allyears['State_Des'] == '5', '5',
-                                                                                          np.where(final_matched_claims_allyears['State_Des'] == '-',
-                                                                                                   '-', '-'))))))
+#---See if trauma lvl changed overtime based on provider id (similar process as above)---#
 
-# Again, prioritize ACS
-final_matched_claims_allyears.loc[final_matched_claims_allyears['ACS_Ver'] == '1', 'TRAUMA_LEVEL'] = '1'
-final_matched_claims_allyears.loc[final_matched_claims_allyears['ACS_Ver'] == '2', 'TRAUMA_LEVEL'] = '2'
-final_matched_claims_allyears.loc[final_matched_claims_allyears['ACS_Ver'] == '3', 'TRAUMA_LEVEL'] = '3'
-
-# See if trauma lvl changed overtime based on provider id.
 df_match = final_matched_claims_allyears[final_matched_claims_allyears['PRVDR_NUM'].duplicated(keep=False)] # Place duplicated hospital in another df called df_match. These duplicated hospitals may have different trauma levels overtime
+
 df_match = df_match.drop_duplicates(subset=['PRVDR_NUM','TRAUMA_LEVEL'],keep='last') # ATS may have duplicated hospitals with the same trauma level. I want to reduce the DF to just the unique hospital and their trauma level
+
 df_match = df_match.drop_duplicates(subset=['PRVDR_NUM','TRAUMA_LEVEL'],keep=False) # Drop dup again but now keep False. The logic is to drop any hospitals that have the same trauma level over the years between 2013-2017. Thus, leaving only those that changed trauma levels over the years.
+
 df_match = df_match[df_match['TRAUMA_LEVEL']!='-'] # Drop missing data
+
 df_match = df_match[df_match['PRVDR_NUM'].duplicated(keep=False)] # This function would drop any hospital with one row of data (suggesting that they did not change trauma level over the years)
+
 df_match = df_match.sort_values(by=['PRVDR_NUM','year']) # The remaining are hospitals that change levels over the years between 2013-2017
+
+#----#
 
 # Put provider num of hospitals that changed trauma level overtime to a list
 lvl_change_list_prvdr_num = df_match['PRVDR_NUM'].tolist()
@@ -568,18 +551,20 @@ final_matched_claims_allyears = final_matched_claims_allyears[~final_matched_cla
 #___ Clean DF in preparation to merge with hospital quality and analyze using p-score ___#
 
 # Drop unnecessary columns for trauma center and nontrauma center datasets
+sev_list_matched = final_matched_claims_allyears.columns[final_matched_claims_allyears.columns.str.startswith('sev')].tolist()
+sev_list_unmatched = final_unmatched_claims_allyears.columns[final_unmatched_claims_allyears.columns.str.startswith('sev')].tolist()
 final_matched_claims_allyears = final_matched_claims_allyears.drop(['dayplustwo','NPINUM','MCRNUM','ID','MNAME','MLOCADDR','MLOCCITY','MSTATE',
                                                                     'TCN','AHA_num','Add_1','City/Town','State','ORG_NPI_NUM','DT_1_MONTH','DT_3_MONTHS',
                                                                     'DT_6_MONTHS','DT_12_MONTHS','ats_match_ind','VALID_DEATH_DT_SW','BENE_RACE_CD',
                                                                     'VALID_DEATH_DT_SW_FOLLOWING_YEAR','DSCHRG_CD','COUNTY_CD','ZIP_CD', 'ecode_1', 'mechmaj1',
                                                                     'mechmin1', 'intent1', 'ecode_2', 'mechmaj2', 'mechmin2', 'intent2', 'ecode_3', 'mechmaj3',
-                                                                    'mechmin3', 'intent3', 'ecode_4', 'mechmaj4', 'mechmin4', 'intent4'],axis=1)
+                                                                    'mechmin3', 'intent3', 'ecode_4', 'mechmaj4', 'mechmin4', 'intent4'] + sev_list_matched,axis=1)
 final_unmatched_claims_allyears = final_unmatched_claims_allyears.drop(['dayplustwo','NPINUM','MCRNUM','ID','MNAME','MLOCADDR','MLOCCITY','MSTATE',
                                                                         'TCN','AHA_num','Add_1','City/Town','State','ORG_NPI_NUM','DT_1_MONTH','DT_3_MONTHS',
                                                                         'DT_6_MONTHS','DT_12_MONTHS','ats_match_ind','VALID_DEATH_DT_SW','BENE_RACE_CD',
                                                                         'VALID_DEATH_DT_SW_FOLLOWING_YEAR','DSCHRG_CD','COUNTY_CD','ZIP_CD', 'ecode_1', 'mechmaj1',
                                                                         'mechmin1', 'intent1', 'ecode_2', 'mechmaj2', 'mechmin2', 'intent2', 'ecode_3', 'mechmaj3',
-                                                                        'mechmin3', 'intent3', 'ecode_4', 'mechmaj4', 'mechmin4', 'intent4'],axis=1)
+                                                                        'mechmin3', 'intent3', 'ecode_4', 'mechmaj4', 'mechmin4', 'intent4'] + sev_list_unmatched,axis=1)
 
 # Convert all dx columns to strings to resolve ValueError: Column cannot be exported.
 dx = [f'dx{i}' for i in range(1,39)]
@@ -595,7 +580,7 @@ for d in date_col:
 # Convert to string
 str_col = ['BENE_ID', 'HCPCS_CD', 'STATE_COUNTY_SSA', 'STATE_CODE', 'SEX_IDENT_CD','PRVDR_NUM',
            'RTI_RACE_CD', 'TRNSFR_PRVDR_NUM', 'TRNSFR_ORG_NPI_NUM','TRNSFR_DSCHRG_STUS','ACS_Ver',
-           'State_Des']
+           'State_Des','TRAUMA_LEVEL']
 for s in str_col:
     final_matched_claims_allyears[f'{s}'] = final_matched_claims_allyears[f'{s}'].astype(str)
     final_unmatched_claims_allyears[f'{s}'] = final_unmatched_claims_allyears[f'{s}'].astype(str)

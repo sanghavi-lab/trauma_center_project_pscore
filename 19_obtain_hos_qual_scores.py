@@ -46,13 +46,14 @@ final_matched_claims_allyears = final_matched_claims_allyears[((final_matched_cl
 final_unmatched_claims_allyears = final_unmatched_claims_allyears[final_unmatched_claims_allyears['num_bene_served']>90]
     # Due to sample size, I kept everyone for trauma level 3,4,5 but dropped those serving less than 90 for nontrauma, level 1, and level 2
 
-# CHECK: mean median and spread (deciles)
-print('nt: mean, median, deciles', final_unmatched_claims_allyears[final_unmatched_claims_allyears['num_bene_served']>90]['num_bene_served'].mean(),final_unmatched_claims_allyears[final_unmatched_claims_allyears['num_bene_served']>90]['num_bene_served'].median(),'\n',final_unmatched_claims_allyears[final_unmatched_claims_allyears['num_bene_served']>90]['num_bene_served'].quantile(np.arange(0.1, 1, 0.1)))
-print('lvl1: mean, median, deciles', final_matched_claims_allyears[(final_matched_claims_allyears['TRAUMA_LEVEL']=='1')&(final_matched_claims_allyears['num_bene_served']>90)]['num_bene_served'].mean(),final_matched_claims_allyears[(final_matched_claims_allyears['TRAUMA_LEVEL']=='1')&(final_matched_claims_allyears['num_bene_served']>90)]['num_bene_served'].median(),'\n',final_matched_claims_allyears[(final_matched_claims_allyears['TRAUMA_LEVEL']=='1')&(final_matched_claims_allyears['num_bene_served']>90)]['num_bene_served'].quantile(np.arange(0.1, 1, 0.1)))
-print('lvl2: mean, median, deciles', final_matched_claims_allyears[(final_matched_claims_allyears['TRAUMA_LEVEL']=='2')&(final_matched_claims_allyears['num_bene_served']>90)]['num_bene_served'].mean(),final_matched_claims_allyears[(final_matched_claims_allyears['TRAUMA_LEVEL']=='2')&(final_matched_claims_allyears['num_bene_served']>90)]['num_bene_served'].median(),'\n',final_matched_claims_allyears[(final_matched_claims_allyears['TRAUMA_LEVEL']=='2')&(final_matched_claims_allyears['num_bene_served']>90)]['num_bene_served'].quantile(np.arange(0.1, 1, 0.1)))
+# # CHECK: mean median and spread (deciles)
+# print('nt: mean, median, deciles', final_unmatched_claims_allyears[final_unmatched_claims_allyears['num_bene_served']>90]['num_bene_served'].mean(),final_unmatched_claims_allyears[final_unmatched_claims_allyears['num_bene_served']>90]['num_bene_served'].median(),'\n',final_unmatched_claims_allyears[final_unmatched_claims_allyears['num_bene_served']>90]['num_bene_served'].quantile(np.arange(0.1, 1, 0.1)))
+# print('lvl1: mean, median, deciles', final_matched_claims_allyears[(final_matched_claims_allyears['TRAUMA_LEVEL']=='1')&(final_matched_claims_allyears['num_bene_served']>90)]['num_bene_served'].mean(),final_matched_claims_allyears[(final_matched_claims_allyears['TRAUMA_LEVEL']=='1')&(final_matched_claims_allyears['num_bene_served']>90)]['num_bene_served'].median(),'\n',final_matched_claims_allyears[(final_matched_claims_allyears['TRAUMA_LEVEL']=='1')&(final_matched_claims_allyears['num_bene_served']>90)]['num_bene_served'].quantile(np.arange(0.1, 1, 0.1)))
+# print('lvl2: mean, median, deciles', final_matched_claims_allyears[(final_matched_claims_allyears['TRAUMA_LEVEL']=='2')&(final_matched_claims_allyears['num_bene_served']>90)]['num_bene_served'].mean(),final_matched_claims_allyears[(final_matched_claims_allyears['TRAUMA_LEVEL']=='2')&(final_matched_claims_allyears['num_bene_served']>90)]['num_bene_served'].median(),'\n',final_matched_claims_allyears[(final_matched_claims_allyears['TRAUMA_LEVEL']=='2')&(final_matched_claims_allyears['num_bene_served']>90)]['num_bene_served'].quantile(np.arange(0.1, 1, 0.1)))
 
 # Drop TRAUMA_LEVEL column
 final_matched_claims_allyears = final_matched_claims_allyears.drop(['TRAUMA_LEVEL'],axis=1)
+final_unmatched_claims_allyears = final_unmatched_claims_allyears.drop(['TRAUMA_LEVEL'],axis=1)
 
 # Read in data containing risk-adjusted surgical mortality quality measure
 hos_qual_measure = pd.read_stata('/mnt/labshares/sanghavi-lab/Jessy/data/trauma_center_project_all_hos_claims/hospital_quality_measure/data_to_run_glm_in_stata/hos_qual_calculated_from_stata.dta',columns=['PRVDR_NUM','year_fe','prob_diff_residual'])
@@ -66,11 +67,11 @@ final_matched_claims_allyears_w_hos_qual = pd.merge(final_matched_claims_allyear
 # Merge with unmatched analytical sample (non-trauma centers)
 final_unmatched_claims_allyears_w_hos_qual = pd.merge(final_unmatched_claims_allyears,hos_qual_measure,how='left',on=['PRVDR_NUM','year_fe'])
 
-# CHECK denominators
-print(final_matched_claims_allyears_w_hos_qual.shape[0])
-print(final_matched_claims_allyears.shape[0])
-print(final_unmatched_claims_allyears_w_hos_qual.shape[0])
-print(final_unmatched_claims_allyears.shape[0])
+# # CHECK denominators
+# print(final_matched_claims_allyears_w_hos_qual.shape[0])
+# print(final_matched_claims_allyears.shape[0])
+# print(final_unmatched_claims_allyears_w_hos_qual.shape[0])
+# print(final_unmatched_claims_allyears.shape[0])
 
 #___ Clean DF in preparation to analyze data using p score and regression ___#
 

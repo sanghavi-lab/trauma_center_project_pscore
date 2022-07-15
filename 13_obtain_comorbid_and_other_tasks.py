@@ -55,10 +55,10 @@ for y in years:
     # Merge scores with claims on pat id to obtain the comorbidity scores
     claim_w_comorbidity = pd.merge(analytical_sample,comorbid_scores,how='inner',on=['patid'])
 
-    # # CHECK: make sure all three of the following have the same denominators to ensure that merge was done correctly.
-    # print(claim_w_comorbidity.shape[0])
-    # print(analytical_sample.shape[0])
-    # print(comorbid_scores.shape[0])
+    # CHECK: make sure all three of the following have the same denominators to ensure that merge was done correctly.
+    print(claim_w_comorbidity.shape[0])
+    print(analytical_sample.shape[0])
+    print(comorbid_scores.shape[0])
 
     # Recover memory
     del analytical_sample

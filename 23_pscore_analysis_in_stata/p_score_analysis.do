@@ -40,9 +40,6 @@ drop if SEX_IDENT_CD=="0"
 * Remove if admitted with trauma code but not primarily for trauma
 drop if sec_secondary_trauma_ind==1
 
-* Remove those under 65
-drop if AGE < 65
-
 * Creating Bands for niss. May not be used in model but create just in case
 gen niss_bands = .
 replace niss_bands = 1 if niss<=15
@@ -61,7 +58,7 @@ destring SEX_IDENT_CD, generate(SEX)
 destring STATE_COUNTY_SSA, generate(COUNTY) /* maybe I don't need since I want state level FE but create just in case */
 destring STATE_CODE, generate(STATE)
 
-* Create trauma level variable using state_des first.
+* Create trauma level variable using state_des first. I created this variable in prior scripts but it's more convenient just to create this again as a factor variable in Stata.
 gen TRAUMA_LEVEL = 6 /* Any in TRAUMA_LVL that did not get replaced will be assigned a 6 */
 replace TRAUMA_LEVEL=1 if State_Des == "1"
 replace TRAUMA_LEVEL=2 if State_Des == "2"
@@ -69,12 +66,10 @@ replace TRAUMA_LEVEL=3 if State_Des == "3"
 replace TRAUMA_LEVEL=4 if State_Des == "4"
 replace TRAUMA_LEVEL=4 if State_Des == "5" /* designate level 5 in the same category as level 4 */
 
-* Prioritize ACS_Ver categorization over State_Des. (Same with Ellen's inventory paper)
+* Prioritize ACS_Ver categorization over State_Des. There is no level 4 or 5 in the ACS_Ver column
 replace TRAUMA_LEVEL=1 if ACS_Ver == "1"
 replace TRAUMA_LEVEL=2 if ACS_Ver == "2"
 replace TRAUMA_LEVEL=3 if ACS_Ver == "3"
-replace TRAUMA_LEVEL=4 if ACS_Ver == "4"
-replace TRAUMA_LEVEL=4 if ACS_Ver == "5" /* designate level 5 in the same category as level 4 */
 
 * Label the variables that were de-stringed
 label define RACE_label 1 "White" 2 "Black" 3 "Other" 4 "Asian/PI" 5 "Hispanic" 6 "Native Americans/Alaskan Native"
@@ -97,8 +92,10 @@ ren prop_hos_w_med_school_in_cnty med_cty
 ren cc_otcc_count cc_cnt
 
 *--- Loop through different analysis groups ---*
-local analysis_groups `" "all" "amb" "gun" "cut" "fal" "mot" "m16" "m25" "m41" "ip" "ipF" "ipM" "ipA" "op" "opF" "opM" "opA" "' /* all is all hospital sample, amb is only bene's who came to the hospital on an emergency ambulance, gun is firearms only, cut is nonfirearm-related penetrating injury, fal is short for falls, and mot is short for motor vehicle accidents. m16 is niss 16-24, m25 is 25-40, and m41 is 41+ */
-local analysis_groups `" "all" "amb" "gun" "fal" "mot" "' /* all is all hospital sample, amb is only bene's who came to the hospital on an emergency ambulance, gun is firearms only, cut is nonfirearm-related penetrating injury, fal is short for falls, and mot is short for motor vehicle accidents. m16 is niss 16-24, m25 is 25-40, and m41 is 41+ */
+
+* Only the longer list is needed if we want to look at additional subgroups. Otherwise, we use the smaller list.
+*local analysis_groups `" "all" "amb" "gun" "cut" "fal" "mot" "m16" "m25" "m41" "ip" "ipF" "ipM" "ipA" "op" "opF" "opM" "opA" "' /* all is all hospital sample, amb is only bene's who came to the hospital on an emergency ambulance, gun is firearms only, cut is nonfirearm-related penetrating injury, fal is short for falls, and mot is short for motor vehicle accidents. m16 is niss 16-24, m25 is 25-40, and m41 is 41+ */
+local analysis_groups `" "all" "amb" "gun" "fal" "mot" "' /* all is all hospital sample, amb is only bene's who came to the hospital on an emergency ambulance, gun is firearms only, cut is nonfirearm-related penetrating injury, fal is short for falls, and mot is short for motor vehicle accidents. */
 
 foreach a of local analysis_groups {
 
@@ -248,7 +245,6 @@ foreach a of local analysis_groups {
     }
     else{ /* 10 comparison groups if analysis group is NOT firearm */
         local treatment_list `" "one_v_two" "one_v_three" "one_v_four_five" "one_v_nt" "two_v_three" "two_v_four_five" "two_v_nt" "three_v_four_five" "three_v_nt" "four_five_v_nt" "'
-        local treatment_list `" "one_v_two" "one_v_nt" "two_v_nt" "'
     }
 
     * Loop through each comparison group
@@ -479,7 +475,7 @@ foreach a of local analysis_groups {
 
             * Sanity check: Regression covariates on treatment to see if there is significant difference between hospital types. DO NOT NEED TO SAVE P VALUE because we "forced" the means to be the same so the p value is always 1.
             reg `c' treatment [pw=weights]
-            *noisily reg m_hh_inc treatment [pw=weights]
+            *noisily reg m_hh_inc treatment [pw=weights] /* Check if median household income was significant after adjusting */
         }
 
         *____________ Step 5: Run Analysis ONLY AFTER we are satisfied with model and balance ________________*

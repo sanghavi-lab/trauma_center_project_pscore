@@ -13,9 +13,9 @@ import dask.dataframe as dd
 
 ############################################ MODULE FOR CLUSTER ########################################################
 
-# # Read in libraries to use cluster
-# from dask.distributed import Client
-# client = Client('127.0.0.1:3500')
+# Read in libraries to use cluster
+from dask.distributed import Client
+client = Client('127.0.0.1:3500')
 
 ################################### MERGE NISS INFORMATION BACK WITH CLAIMS DATA #######################################
 # This section will only keep those with NISS from 16 to 75 (major trauma)                                             #
@@ -52,31 +52,29 @@ for y in years:
     # Read in analytical sample
     df_claims = dd.read_parquet(f'/mnt/labshares/sanghavi-lab/Jessy/data/trauma_center_project_all_hos_claims/all_hos_claims/{y}',engine='fastparquet')
 
-    print(df_claims['sec_secondary_trauma_ind'].sum().compute()/df_claims.shape[0].compute())
+    # Merge so that the niss information is connected to the original claim data
+    df_merge = dd.merge(df_claims,icdpicr_niss,how='inner',on=['UNIQUE_ID'])
 
-#     # Merge so that the niss information is connected to the original claim data
-#     df_merge = dd.merge(df_claims,icdpicr_niss,how='inner',on=['UNIQUE_ID'])
-#
-#     # CHECK to make sure each df denominator is the same
-#     print(df_claims.shape[0].compute()) # number will be higher due to duplicated unique id. will drop in code 11
-#     print(icdpicr_niss.shape[0].compute())
-#     print(df_merge.shape[0].compute()) # number should be the same as the first one
-#
-#     # Recover memory
-#     del df_claims
-#     del icdpicr_niss
-#
-#     # APPENDIX: Calculate the number of those who are NOT major trauma
-#     print(f'Currently at {y}')
-#     num_rows_not_major_trauma.append(df_merge[df_merge['niss']<=15].shape[0].compute())
-#
-#     # Keep only major trauma
-#     df_merge = df_merge[df_merge['niss']>15]
-#
-#     # Read out
-#     df_merge.to_parquet(f'/mnt/labshares/sanghavi-lab/Jessy/data/trauma_center_project_all_hos_claims/all_hos_claims/{y}_major_trauma',engine='fastparquet',compression='gzip')
-#
-# # APPENDIX: Print total number of claims that are not major trauma
-# print('Not major trauma: ',sum(num_rows_not_major_trauma))
-#
+    # CHECK to make sure each df denominator is the same
+    print(df_claims.shape[0].compute()) # number will be higher due to duplicated unique id. will drop in code 11
+    print(icdpicr_niss.shape[0].compute())
+    print(df_merge.shape[0].compute()) # number should be the same as the first one
+
+    # Recover memory
+    del df_claims
+    del icdpicr_niss
+
+    # APPENDIX: Calculate the number of those who are NOT major trauma
+    print(f'Currently at {y}')
+    num_rows_not_major_trauma.append(df_merge[df_merge['niss']<=15].shape[0].compute())
+
+    # Keep only major trauma
+    df_merge = df_merge[df_merge['niss']>15]
+
+    # Read out
+    df_merge.to_parquet(f'/mnt/labshares/sanghavi-lab/Jessy/data/trauma_center_project_all_hos_claims/all_hos_claims/{y}_major_trauma',engine='fastparquet',compression='gzip')
+
+# APPENDIX: Print total number of claims that are not major trauma
+print('Not major trauma: ',sum(num_rows_not_major_trauma))
+
 
