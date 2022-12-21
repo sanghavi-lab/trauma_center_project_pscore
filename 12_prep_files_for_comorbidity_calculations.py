@@ -79,7 +79,7 @@ for y in years:
     df_long = df_long.drop(['column_names'],axis=1)
     df_long = df_long.rename(columns={'UNIQUE_ID':'patid'})
 
-    # Add a label if the diagnosis code is ICD9 or ICD10
+    # Add a label if the diagnosis code is ICD9 or ICD10. 2015 will be automatically dropped in SAS program because I specified '09' for icd9
     if y in [2011,2012,2013,2014,2015]:
         df_long['Dx_CodeType'] = '09'
     if y in [2016,2017]:
