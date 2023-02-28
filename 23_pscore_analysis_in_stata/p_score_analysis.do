@@ -355,7 +355,7 @@ foreach a of local analysis_groups {
             reg `c' treatment
 
             *___ STANDARDIZED DIFFERENCE FOR DICHOTOMOUS VARIABLES ___*
-            if inlist("`c'", "female", "white", "black", "other_n", "asian_pi", "hispanic")|inlist("`c'", "metro")|inlist("`c'","n16_24", "n25_40", "n41", "cs1", "cs4", "cc1_6", "cc7"){
+            if inlist("`c'", "female", "white", "black", "other_n", "asian_pi", "hispanic")|inlist("`c'", "metro")|inlist("`c'","n16_24", "n25_40", "n41", "cs1", "cs1_3", "cs4", "cc1_6", "cc7"){
             summarize `c' if treatment == 1     /* Apply weights for treatment group */
             local `a'`t'`c'ppt = r(mean)                      /* Obtain weighted probability from treatment */
             summarize `c' if treatment == 0     /* Apply weights for control group */
@@ -562,7 +562,7 @@ foreach a of local analysis_groups {
             *noisily reg m_hh_inc treatment [pw=weights] /* Check if median household income was significant after adjusting */
 
             *___ STANDARDIZED DIFFERENCE FOR DICHOTOMOUS VARIABLES ___*
-            if inlist("`c'", "female", "white", "black", "other_n", "asian_pi", "hispanic")|inlist("`c'", "metro")|inlist("`c'","n16_24", "n25_40", "n41", "cs1", "cs4", "cc1_6", "cc7"){
+            if inlist("`c'", "female", "white", "black", "other_n", "asian_pi", "hispanic")|inlist("`c'", "metro")|inlist("`c'","n16_24", "n25_40", "n41", "cs1", "cs1_3", "cs4", "cc1_6", "cc7"){
             summarize `c' [aw=weights] if treatment == 1     /* Apply weights for treatment group */
             local `a'`t'`c'ppt = r(mean)                      /* Obtain weighted probability from treatment */
             summarize `c' [aw=weights] if treatment == 0     /* Apply weights for control group */
