@@ -3,7 +3,7 @@
 # Author: Jessy Nguyen
 # Last Updated: July 11, 2022
 # Description: The script will merge the trauma data from the American Trauma Society (ATS) with the analytical claims sample to
-# categorize the different hospital types and prepare the files for Stata. This a lot of work went into this procedure, but here is the
+# categorize the different hospital types and prepare the files for Stata. A lot of work went into this procedure, but here is the
 # overall process: (1) Identifying trauma centers by matching the analytical claims with ATS within each year. Any claims that were
 # not matched were then matched again with ATS data in the following year. To make sure the trauma center identification was accurate,
 # I removed hospitals that have multiple trauma centers with different levels and hospitals that changed levels between 2013-2017.
