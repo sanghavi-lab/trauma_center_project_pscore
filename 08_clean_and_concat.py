@@ -56,7 +56,7 @@ for y in years:
     if y in [*range(2011,2016)]: # ICD9
         ip_op['sec_secondary_trauma_ind'] = ip_op['sec_secondary_trauma_ind'].mask((ip_op[['dx4']].applymap(lambda x: x.startswith(tuple(['8','9']))).any(axis='columns')),1)
         ip_op['sec_secondary_trauma_ind'] = ip_op['sec_secondary_trauma_ind'].mask((ip_op[['dx1','dx2','dx3']].applymap(lambda x: x.startswith(tuple(['8','9']))).any(axis='columns')),0) # since the mask function cannot use the invert operator ~, I will need to repeat the mask function again and remove any 1's if there is an injury code in the admitting, primary, or first secondary column
-    if y in [*range(2016,2018)]: # ICD10
+    if y in [*range(2016,2020)]: # ICD10
         ip_op['sec_secondary_trauma_ind'] = ip_op['sec_secondary_trauma_ind'].mask((ip_op[['dx4']].applymap(lambda x: x.startswith(tuple(['S','T']))).any(axis='columns')),1)
         ip_op['sec_secondary_trauma_ind'] = ip_op['sec_secondary_trauma_ind'].mask((ip_op[['dx1','dx2','dx3']].applymap(lambda x: x.startswith(tuple(['S','T']))).any(axis='columns')),0) # since the mask function cannot use the invert operator ~, I will need to repeat the mask function again and remove any 1's if there is an injury code in the admitting, primary, or first secondary column
 
